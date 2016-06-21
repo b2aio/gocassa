@@ -254,7 +254,7 @@ func (t *MockTable) SetWithOptions(i interface{}, options Options) Op {
 		superColumn := t.getOrCreateColumnGroup(rowKey, superColumnKey)
 
 		for k, v := range columns {
-			superColumn[k] = v
+			updateMockColumn(superColumn, k, v)
 		}
 		return nil
 	})
@@ -389,12 +389,12 @@ func (f *MockFilter) UpdateWithOptions(m map[string]interface{}, options Options
 
 				for _, key := range []key{rowKey, superColumnKey} {
 					for _, keyPart := range key {
-						superColumn[keyPart.Key] = keyPart.Value
+						updateMockColumn(superColumn, keyPart.Key, keyPart.Value)
 					}
 				}
 
 				for key, value := range m {
-					superColumn[key] = value
+					updateMockColumn(superColumn, key, value)
 				}
 			}
 		}
@@ -496,4 +496,29 @@ func (q *MockFilter) ReadOne(out interface{}) Op {
 		q.assignResult(sliceVal.Index(0).Interface(), out)
 		return nil
 	})
+}
+
+func updateMockColumn(superColumn map[string]interface{}, key string, value interface{}) {
+	switch v := value.(type) {
+	case Modifier:
+		switch v.op {
+		case modifierCounterIncrement:
+			c, ok := superColumn[key].(int)
+			if !ok {
+				panic("unexpected counter type")
+			}
+			if len(v.args) != 1 {
+				panic("not enough args")
+			}
+			inc, ok := v.args[0].(int)
+			if !ok {
+				panic("unexpected increment value type")
+			}
+			superColumn[key] = c + inc
+		default:
+			panic("not supported yet")
+		}
+	default:
+		superColumn[key] = value
+	}
 }
