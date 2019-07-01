@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## v2.0.2 - 2019-07-01
+
+### Fixed
+ - If an error is thrown whilst scanning/reading a single row, the original pointer will stay untouched (previously it may have been allocated with the initial value of your struct)
+
 ## v2.0.1 - 2019-06-28
 
 ### Changed

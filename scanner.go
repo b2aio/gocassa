@@ -40,18 +40,24 @@ func (s *scanner) ScanIter(iter Scannable) (int, error) {
 }
 
 func (s *scanner) iterSlice(iter Scannable) (int, error) {
-	// If we're given a pointer address to nil, we are responsible for
-	// allocating it before we assign. Note that this could be a ptr to
-	// a ptr (and so forth)
-	err := allocateNilReference(s.result)
-	if err != nil {
-		return 0, err
-	}
-
 	// Extract the type of the slice
 	sliceType := getNonPtrType(reflect.TypeOf(s.result))
 	sliceElemType := sliceType.Elem()
 	sliceElemValType := getNonPtrType(sliceType.Elem())
+
+	// Extract the type of the underlying struct
+	structFields, err := s.structFields(sliceElemValType)
+	if err != nil {
+		return 0, err
+	}
+
+	// If we're given a pointer address to nil, we are responsible for
+	// allocating it before we assign. Note that this could be a ptr to
+	// a ptr (and so forth)
+	err = allocateNilReference(s.result)
+	if err != nil {
+		return 0, err
+	}
 
 	// To preserve prior behaviour, if the result slice is not empty
 	// then allocate a new slice and set it as the value
@@ -61,12 +67,6 @@ func (s *scanner) iterSlice(iter Scannable) (int, error) {
 	}
 	if sliceElem.Len() != 0 {
 		sliceElem.Set(reflect.Zero(sliceType))
-	}
-
-	// Extract the type of the underlying struct
-	structFields, err := s.structFields(sliceElemValType)
-	if err != nil {
-		return 0, err
 	}
 
 	rowsScanned := 0
@@ -90,20 +90,6 @@ func (s *scanner) iterSlice(iter Scannable) (int, error) {
 }
 
 func (s *scanner) iterSingle(iter Scannable) (int, error) {
-	// If we're given a pointer address to nil, we are responsible for
-	// allocating it before we assign. Note that this could be a ptr to
-	// a ptr (and so forth)
-	err := allocateNilReference(s.result)
-	if err != nil {
-		return 0, err
-	}
-
-	outPtr := reflect.ValueOf(s.result)
-	outVal := outPtr.Elem()
-	for outVal.Kind() == reflect.Ptr {
-		outVal = outVal.Elem() // we will eventually get to the underlying value
-	}
-
 	// Extract the type of the underlying struct
 	resultBaseType := getNonPtrType(reflect.TypeOf(s.result))
 	structFields, err := s.structFields(resultBaseType)
@@ -122,6 +108,20 @@ func (s *scanner) iterSingle(iter Scannable) (int, error) {
 	err = iter.Scan(ptrs...) // we only need to scan once
 	if err != nil {
 		return 0, err
+	}
+
+	// If we're given a pointer address to nil, we are responsible for
+	// allocating it before we assign. Note that this could be a ptr to
+	// a ptr (and so forth)
+	err = allocateNilReference(s.result)
+	if err != nil {
+		return 0, err
+	}
+
+	outPtr := reflect.ValueOf(s.result)
+	outVal := outPtr.Elem()
+	for outVal.Kind() == reflect.Ptr {
+		outVal = outVal.Elem() // we will eventually get to the underlying value
 	}
 
 	setPtrs(structFields, ptrs, outVal)

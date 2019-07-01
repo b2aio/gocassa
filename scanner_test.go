@@ -183,6 +183,7 @@ func TestScanIterStruct(t *testing.T) {
 	noResultsIter := newMockIterator([]map[string]interface{}{}, stmt.FieldNames())
 	rowsRead, err = newScanner(stmt, &f1).ScanIter(noResultsIter)
 	assert.EqualError(t, err, ":0: No rows returned")
+	assert.Nil(t, f1)
 
 	// Test for a non-rows-not-found error
 	var g1 *Account
@@ -193,6 +194,7 @@ func TestScanIterStruct(t *testing.T) {
 	rowsRead, err = errorScanner.ScanIter(errorerIter)
 	assert.Equal(t, 0, rowsRead)
 	assert.Equal(t, err, expectedErr)
+	assert.Nil(t, g1)
 }
 
 func TestScanIterComposite(t *testing.T) {
