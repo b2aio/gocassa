@@ -33,6 +33,12 @@ func (mm *multimapMkT) Delete(field, id map[string]interface{}) Op {
 		Delete()
 }
 
+func (mm *multimapMkT) DeleteKeysFromMap(field, id map[string]interface{}, mapName string, keysToRemove []interface{}) Op {
+	return mm.Table().
+		Where(mm.ListOfEqualRelations(field, id)...).
+		DeleteKeysFromMap(mapName, keysToRemove)
+}
+
 func (mm *multimapMkT) DeleteAll(field map[string]interface{}) Op {
 	return mm.Table().
 		Where(mm.ListOfEqualRelations(field, nil)...).

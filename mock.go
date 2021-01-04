@@ -422,6 +422,7 @@ func (t *MockTable) CreateIfNotExistStatement() (Statement, error) {
 	return noOpStatement, nil
 }
 
+
 func (t *MockTable) Recreate() error {
 	return nil
 }
@@ -543,6 +544,10 @@ func (f *MockFilter) UpdateWithOptions(m map[string]interface{}, options Options
 
 func (f *MockFilter) Update(m map[string]interface{}) Op {
 	return f.UpdateWithOptions(m, Options{})
+}
+
+func (q *MockFilter) DeleteKeysFromMap(mapName string, columnsToDelete []interface{}) Op {
+	return Noop()
 }
 
 func (f *MockFilter) Delete() Op {

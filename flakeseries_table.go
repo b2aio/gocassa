@@ -80,6 +80,20 @@ func (o *flakeSeriesT) Delete(id string) Op {
 		Delete()
 }
 
+func (o *flakeSeriesT) DeleteKeysFromMap(id string, mapName string, columsnToRemove []interface{}) Op {
+	timestamp, err := flakeToTime(id)
+	if err != nil {
+		return errOp{err: err}
+	}
+	bucket := bucket(timestamp, o.bucketSize)
+
+	return o.Table().
+		Where(Eq(bucketFieldName, bucket),
+			Eq(flakeTimestampFieldName, timestamp),
+			Eq(o.idField, id)).
+		DeleteKeysFromMap(mapName, columsnToRemove)
+}
+
 func (o *flakeSeriesT) Read(id string, pointer interface{}) Op {
 	timestamp, err := flakeToTime(id)
 	if err != nil {

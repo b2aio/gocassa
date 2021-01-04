@@ -45,6 +45,15 @@ func (o *timeSeriesT) Update(timeStamp time.Time, id interface{}, m map[string]i
 		Update(m)
 }
 
+func (o *timeSeriesT) DeleteKeysFromMap(timeStamp time.Time, id interface{}, mapName string, keysToRemove []interface{}) Op {
+	bucket := bucket(timeStamp, o.bucketSize)
+	return o.Table().
+		Where(Eq(bucketFieldName, bucket),
+			Eq(o.timeField, timeStamp),
+			Eq(o.idField, id)).
+		DeleteKeysFromMap(mapName, keysToRemove)
+}
+
 func (o *timeSeriesT) Delete(timeStamp time.Time, id interface{}) Op {
 	bucket := bucket(timeStamp, o.bucketSize)
 	return o.Table().

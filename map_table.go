@@ -32,6 +32,12 @@ func (m *mapT) Delete(id interface{}) Op {
 		Delete()
 }
 
+func (m *mapT) DeleteKeysFromMap(id interface{}, mapName string, keysToRemove []interface{}) Op {
+	return m.Table().
+		Where(Eq(m.idField, id)).
+		DeleteKeysFromMap(mapName, keysToRemove)
+}
+
 func (m *mapT) Read(id, pointer interface{}) Op {
 	return m.Table().
 		Where(Eq(m.idField, id)).

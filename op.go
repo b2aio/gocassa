@@ -16,6 +16,7 @@ const (
 	deleteOpType
 	updateOpType
 	insertOpType
+	deleteKeysOpType
 )
 
 type singleOp struct {
@@ -76,7 +77,7 @@ func (w *singleOp) write() error {
 
 func (o *singleOp) Run() error {
 	switch o.opType {
-	case updateOpType, insertOpType, deleteOpType:
+	case updateOpType, insertOpType, deleteOpType, deleteKeysOpType:
 		return o.write()
 	case readOpType:
 		return o.read()
@@ -104,7 +105,7 @@ func (o *singleOp) RunAtomicallyWithContext(ctx context.Context) error {
 
 func (o *singleOp) GenerateStatement() Statement {
 	switch o.opType {
-	case updateOpType, insertOpType, deleteOpType:
+	case updateOpType, insertOpType, deleteOpType, deleteKeysOpType:
 		return o.generateWrite(o.options)
 	case readOpType, singleReadOpType:
 		return o.generateRead(o.options)
@@ -128,6 +129,11 @@ func (o *singleOp) generateWrite(opt Options) Statement {
 	case deleteOpType:
 		str, vals = generateWhere(o.f.rs)
 		str = fmt.Sprintf("DELETE FROM %s.%s%s", o.f.t.keySpace.name, o.f.t.Name(), str)
+	case deleteKeysOpType:
+		whereStr, whereVals := generateWhere(o.f.rs)
+		deleteStr, deleteVals := generateDeleteKeys(o.f.t.keySpace.name, o.f.t.Name(), o.m)
+		str = deleteStr + whereStr
+		vals = append(deleteVals, whereVals...)
 	case insertOpType:
 		str, vals = insertStatement(o.f.t.keySpace.name, o.f.t.Name(), o.m, o.f.t.options.Merge(opt))
 	}
@@ -262,4 +268,20 @@ func sortedKeys(m map[string]interface{}) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func generateDeleteKeys(ks, cn string, m map[string]interface{}) (string, []interface{}) {
+	keys, _ := m["keys"].([]interface{})
+	columnName, _ := m["mapName"].(string)
+
+	s := ""
+	deleteVals := []interface{}{}
+	for i, key := range keys {
+		if i > 0 {
+			s = s + ", "
+		}
+		s = s + fmt.Sprintf("%s[?]", columnName)
+		deleteVals = append(deleteVals, key)
+	}
+	return fmt.Sprintf("DELETE %s FROM %s.%s", s, ks, cn), deleteVals
 }

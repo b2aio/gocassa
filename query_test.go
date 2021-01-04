@@ -49,7 +49,6 @@ func init() {
 	}
 	conn := &connection{q: goCQLBackend{session: sess}}
 	ns = conn.KeySpace(kname)
-
 	err = conn.DropKeySpace(kname)
 	if err != nil {
 		panic(err)

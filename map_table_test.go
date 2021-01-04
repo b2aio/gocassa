@@ -1,6 +1,7 @@
 package gocassa
 
 import (
+	"context"
 	"reflect"
 	"testing"
 )
@@ -101,4 +102,51 @@ func TestMapTableMultiRead(t *testing.T) {
 	if !reflect.DeepEqual((*customers)[1], jane) {
 		t.Fatalf("Expected to find jane, got %v", (*customers)[1])
 	}
+}
+
+func TestMapTableDeleteKeysFromMap(t *testing.T) {
+	ctx := context.TODO()
+	type TestTable struct {
+		Id string
+		MyMap map[string]int
+	}
+	tbl := ns.MapTable("map_testing", "Id", TestTable{})
+	createIf(tbl.(TableChanger), t)
+
+	entry := TestTable{Id: "1", MyMap: map[string]int{"A": 1, "B": 2, "C": 3}}
+	err := tbl.Set(entry).RunWithContext(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	readEntry := &TestTable{}
+	err = tbl.Read("1", readEntry).RunWithContext(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(*readEntry, entry) {
+		t.Fatalf("Expected to find entry, got %v", *readEntry)
+	}
+
+	err = tbl.DeleteKeysFromMap("1", "MyMap", []interface{}{"A", "B"}).RunWithContext(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newEntry := &TestTable{}
+	err = tbl.Read("1", newEntry).RunWithContext(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	v, ok := newEntry.MyMap["A"]
+	if ok {
+		t.Fatalf("Expected key A to deleted instead has value %v", v)
+	}
+
+	v, ok = newEntry.MyMap["B"]
+	if ok {
+		t.Fatalf("Expected key B to deleted instead has value %v", v)
+	}
+
 }
