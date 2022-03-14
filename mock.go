@@ -131,8 +131,6 @@ func (mo mockMultiOp) Add(inOps ...Op) Op {
 			ops = append(ops, op...)
 		case mockOp:
 			ops = append(ops, op)
-		default:
-			panic("can't Add non-mock ops to mockMultiOp")
 		}
 	}
 	return append(mo, ops...)
