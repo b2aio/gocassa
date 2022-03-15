@@ -129,7 +129,7 @@ func (mo mockMultiOp) Add(inOps ...Op) Op {
 		switch op := op.(type) {
 		case mockMultiOp:
 			ops = append(ops, op...)
-		case mockOp:
+		default:
 			ops = append(ops, op)
 		}
 	}
