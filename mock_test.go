@@ -875,6 +875,44 @@ func TestErrorInjectors(t *testing.T) {
 			assert.Equal(t, thing, readThing)
 		}
 	})
+
+	t.Run("FailOnEachOperationSingleOp", func(t *testing.T) {
+		ks := NewMockKeySpace()
+		table := ks.MapTable("table_name", "ID", Thing{})
+
+		op := Noop()
+		op = op.Add(table.Set(things[0]))
+		errorInjector := FailOnEachOperation(errToInject)
+		ctx := ErrorInjectorContext(context.Background(), errorInjector)
+
+		// ops, ok := op.(mockMultiOp)
+		// require.True(t, ok)
+
+		i := 0
+		for errorInjector.ShouldContinue() {
+			err := op.RunWithContext(ctx)
+			assert.Equal(t, errToInject, err)
+			assert.True(t, errorInjector.ShouldContinue())
+			assert.Equal(t, i, errorInjector.LastErrorInjectedAtIdx())
+
+			i++
+			if i > 10 {
+				assert.Fail(t, "Error injector looped more than 10 times")
+			}
+		}
+
+		// After we've failed on all the operations, the error injector should
+		// stop injecting errors, allowing the operation to succeed
+		err := op.RunWithContext(ctx)
+		assert.NoError(t, err)
+		assert.False(t, errorInjector.ShouldContinue())
+		assert.Equal(t, -1, errorInjector.LastErrorInjectedAtIdx())
+
+		readThing := Thing{}
+		err = table.Read(things[0].ID, &readThing).RunWithContext(context.Background())
+		require.NoError(t, err)
+		assert.Equal(t, things[0], readThing)
+	})
 }
 
 func TestMockClusteringOrder(t *testing.T) {
