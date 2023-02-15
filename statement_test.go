@@ -54,6 +54,9 @@ func TestInsertStatement(t *testing.T) {
 	stmt = stmt.WithTTL(1 * time.Hour)
 	assert.Equal(t, "INSERT INTO ks1.tbl1 (a, c) VALUES (?, ?) USING TTL ?", stmt.Query())
 	assert.Equal(t, []interface{}{"b", "d", 3600}, stmt.Values())
+
+	stmt = stmt.WithIfNotExists()
+	assert.Equal(t, "INSERT INTO ks1.tbl1 (a, c) VALUES (?, ?) USING TTL ? IF NOT EXISTS", stmt.Query())
 }
 
 func TestUpdateStatement(t *testing.T) {

@@ -194,6 +194,7 @@ type InsertStatement struct {
 	table                string                 // name of the table
 	fieldMap             map[string]interface{} // fields to be inserted
 	ttl                  time.Duration          // ttl of the row
+	ifNotExists          bool                   // use IF NOT EXISTS/Lightweight Transactions
 	keys                 Keys                   // partition / clustering keys for table
 	allowClusterSentinel bool                   // whether we should enable our clustering sentinel
 }
@@ -260,6 +261,11 @@ func (s InsertStatement) QueryAndValues() (string, []interface{}) {
 		values = append(values, int(s.TTL().Seconds()))
 	}
 
+	// Set IF NOT EXISTS
+	if s.IfNotExists() {
+		query = append(query, "IF NOT EXISTS")
+	}
+
 	return strings.Join(query, " "), values
 }
 
@@ -295,6 +301,18 @@ func (s InsertStatement) WithTTL(ttl time.Duration) InsertStatement {
 		ttl = time.Duration(0)
 	}
 	s.ttl = ttl
+	return s
+}
+
+// IfNotExists returns if the statement should be applied with IF NOT EXISTS (Lightweight Transactions)
+func (s InsertStatement) IfNotExists() bool {
+	return s.ifNotExists
+}
+
+// WithTTL allows setting of the time-to-live for this insert statement.
+// A duration of 0 means there is no TTL
+func (s InsertStatement) WithIfNotExists() InsertStatement {
+	s.ifNotExists = true
 	return s
 }
 
@@ -541,8 +559,8 @@ func (_ noOpStatement) Values() []interface{} { return []interface{}{} }
 
 // generateUpdateSetCQL takes in a field map and generates the comma separated
 // SET syntax. An expected output may be something like:
-// 	- "foo = ?", {1}
-// 	- "foo = ?, bar = ?", {1, 2}
+//   - "foo = ?", {1}
+//   - "foo = ?, bar = ?", {1, 2}
 func generateUpdateSetCQL(fm map[string]interface{}) (string, []interface{}) {
 	clauses, values := make([]string, 0, len(fm)), make([]interface{}, 0, len(fm))
 	for _, fieldName := range sortedKeys(fm) {
@@ -561,8 +579,8 @@ func generateUpdateSetCQL(fm map[string]interface{}) (string, []interface{}) {
 
 // generateWhereCQL takes a list of relations and generates the CQL for
 // a WHERE clause. An expected output may be something like:
-//	- "foo = ?", {1}
-//	- "foo = ? AND bar IN ?", {1, {"a", "b", "c"}}
+//   - "foo = ?", {1}
+//   - "foo = ? AND bar IN ?", {1, {"a", "b", "c"}}
 func generateWhereCQL(rs []Relation, keys Keys, clusteringSentinelsEnabled bool) (string, []interface{}) {
 	clauses, values := make([]string, 0, len(rs)), make([]interface{}, 0, len(rs))
 	for _, relation := range rs {
@@ -600,8 +618,8 @@ func generateRelationCQL(rel Relation, keys Keys, clusteringSentinelsEnabled boo
 
 // generateOrderByCQL generates the CQL for the ORDER BY clause. An expected
 // output might look like:
-//	- foo ASC
-//  - foo ASC, bar DESC
+//   - foo ASC
+//   - foo ASC, bar DESC
 func generateOrderByCQL(order []ClusteringOrderColumn) string {
 	out := make([]string, 0, len(order))
 	for _, oc := range order {
