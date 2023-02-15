@@ -43,6 +43,8 @@ type Options struct {
 	// TTL specifies a duration over which data is valid. It will be truncated to second precision upon statement
 	// execution.
 	TTL time.Duration
+	// IfNotExists specifies if a query should be executed as an LWT with `IF NOT EXISTS`
+	IfNotExists bool
 	// Limit query result set
 	Limit int
 	// TableName overrides the default internal table name. When naming a table 'users' the internal table name becomes 'users_someTableSpecificMetaInformation'.

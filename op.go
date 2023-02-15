@@ -123,11 +123,12 @@ func (o *singleOp) generateSelect(opt Options) SelectStatement {
 func (o *singleOp) generateInsert(opt Options) InsertStatement {
 	mopt := o.f.t.options.Merge(opt)
 	return InsertStatement{
-		keyspace: o.f.t.keySpace.name,
-		table:    o.f.t.Name(),
-		fieldMap: o.m,
-		ttl:      mopt.TTL,
-		keys:     o.f.t.info.keys,
+		keyspace:    o.f.t.keySpace.name,
+		table:       o.f.t.Name(),
+		fieldMap:    o.m,
+		ttl:         mopt.TTL,
+		ifNotExists: mopt.IfNotExists,
+		keys:        o.f.t.info.keys,
 	}
 }
 
