@@ -544,6 +544,10 @@ func (f *MockFilter) UpdateWithOptions(m map[string]interface{}, options Options
 			return err
 		}
 
+		if err := validatePartitionKeys(rowKeys); err != nil {
+			return err
+		}
+
 		for _, rowKey := range rowKeys {
 			superColumnKeys, err := f.fieldsFromRelations(f.table.keys.ClusteringColumns)
 			if err != nil {
@@ -580,6 +584,10 @@ func (f *MockFilter) Delete() Op {
 
 		rowKeys, err := f.fieldsFromRelations(f.table.keys.PartitionKeys)
 		if err != nil {
+			return err
+		}
+
+		if err := validatePartitionKeys(rowKeys); err != nil {
 			return err
 		}
 
@@ -651,6 +659,10 @@ func (q *MockFilter) readSomeRows() ([]map[string]interface{}, error) {
 		return nil, err
 	}
 
+	if err := validatePartitionKeys(rowKeys); err != nil {
+		return nil, err
+	}
+
 	var result []map[string]interface{}
 	for _, rowKey := range rowKeys {
 		row := q.table.rows[rowKey.RowKey()]
@@ -692,6 +704,31 @@ func (q *MockFilter) ReadOne(out interface{}) Op {
 	return newOp(func(m mockOp) error {
 		return q.Read(out).Run()
 	})
+}
+
+func validatePartitionKeys(keys []key) error {
+	if len(keys) == 0 {
+		return fmt.Errorf("Missing all mandatory PRIMARY KEYs")
+	}
+
+	// no validation needed for composite partition keys
+	if len(keys) > 1 {
+		return nil
+	}
+
+	// For a single partition key of type string, check that it is not
+	// empty, this is same as this error from a real C* cluster-
+	// InvalidRequest: Error from server: code=2200 [Invalid query]
+	// message="Key may not be empty"
+	for _, k := range keys[0] {
+		value := k.Value
+		stringVal, isString := value.(string)
+		if isString && stringVal == "" {
+			return fmt.Errorf("Missing mandatory PRIMARY KEY part %s", k.Key)
+		}
+	}
+
+	return nil
 }
 
 // mockIterator takes in a slice of maps and implements a Scannable iterator
