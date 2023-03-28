@@ -88,7 +88,7 @@ func (mm *multimapMkT) ListOfEqualRelations(fieldsToIndex, ids map[string]interf
 		}
 	}
 
-	// TODO: support empty values in composite clustering keys
+	// TODO: support empty values in clustering columns
 	for _, field := range mm.idField {
 		if value := ids[field]; value != nil && value != "" {
 			relation := Eq(field, value)
