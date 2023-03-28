@@ -80,7 +80,7 @@ func (mm *multimapMkT) WithOptions(o Options) MultimapMkTable {
 func (mm *multimapMkT) ListOfEqualRelations(fieldsToIndex, ids map[string]interface{}) []Relation {
 	relations := make([]Relation, 0)
 
-	// TODO: support empty values in composite partition keys
+	// TODO: support empty string values in composite partition keys
 	for _, field := range mm.fieldsToIndexBy {
 		if value := fieldsToIndex[field]; value != nil && value != "" {
 			relation := Eq(field, value)
@@ -88,7 +88,7 @@ func (mm *multimapMkT) ListOfEqualRelations(fieldsToIndex, ids map[string]interf
 		}
 	}
 
-	// TODO: support empty values in clustering columns
+	// TODO: support empty string values in clustering columns
 	for _, field := range mm.idField {
 		if value := ids[field]; value != nil && value != "" {
 			relation := Eq(field, value)
