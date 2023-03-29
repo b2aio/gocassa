@@ -270,6 +270,10 @@ func (s *MockSuite) TestMapTableMultiRead() {
 	s.Len(users, 2)
 	s.Equal("Jane", users[0].Name)
 	s.Equal("Jill", users[1].Name)
+
+	var users2 []user
+	s.NoError(s.mapTbl.MultiRead([]interface{}{}, &users2).Run())
+	s.Len(users2, 0)
 }
 
 func (s *MockSuite) TestMapTableUpdate() {

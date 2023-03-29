@@ -707,8 +707,10 @@ func (q *MockFilter) ReadOne(out interface{}) Op {
 }
 
 func validatePartitionKeys(keys []key) error {
+	// this is not allowed for DELETE/UPDATEs, but is allowed for SELECTs, so
+	// we don't validate here
 	if len(keys) == 0 {
-		return fmt.Errorf("Missing all mandatory PRIMARY KEYs")
+		return nil
 	}
 
 	// no validation needed for composite partition keys
