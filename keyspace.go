@@ -54,16 +54,16 @@ func (k *k) NewTable(name string, entity interface{}, fields map[string]interfac
 	}
 }
 
-func (k *k) MapTable(name, id string, row interface{}) MapTable {
+func (k *k) MapTable(name, partitionKeyField string, row interface{}) MapTable {
 	m, ok := toMap(row)
 	if !ok {
 		panic("Unrecognized row type")
 	}
 	return &mapT{
-		t: k.NewTable(fmt.Sprintf("%s_map_%s", name, id), row, m, Keys{
-			PartitionKeys: []string{id},
+		t: k.NewTable(fmt.Sprintf("%s_map_%s", name, partitionKeyField), row, m, Keys{
+			PartitionKeys: []string{partitionKeyField},
 		}),
-		idField: id,
+		partitionKeyField: partitionKeyField,
 	}
 }
 
