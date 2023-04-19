@@ -71,18 +71,18 @@ func (k *k) SetKeysSpaceName(name string) {
 	k.name = name
 }
 
-func (k *k) MultimapTable(name, fieldToIndexBy, id string, row interface{}) MultimapTable {
+func (k *k) MultimapTable(name, partitionKeyField, clusteringKeyField string, row interface{}) MultimapTable {
 	m, ok := toMap(row)
 	if !ok {
 		panic("Unrecognized row type")
 	}
 	return &multimapT{
-		t: k.NewTable(fmt.Sprintf("%s_multimap_%s_%s", name, fieldToIndexBy, id), row, m, Keys{
-			PartitionKeys:     []string{fieldToIndexBy},
-			ClusteringColumns: []string{id},
+		t: k.NewTable(fmt.Sprintf("%s_multimap_%s_%s", name, partitionKeyField, clusteringKeyField), row, m, Keys{
+			PartitionKeys:     []string{partitionKeyField},
+			ClusteringColumns: []string{clusteringKeyField},
 		}),
-		idField:        id,
-		fieldToIndexBy: fieldToIndexBy,
+		clusteringKeyField: clusteringKeyField,
+		partitionKeyField:  partitionKeyField,
 	}
 }
 
