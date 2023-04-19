@@ -1,24 +1,24 @@
 package gocassa
 
 type filter struct {
-	t  t
-	rs []Relation
+	table     table
+	relations []Relation
 }
 
 func (f filter) Table() Table {
-	return f.t
+	return f.table
 }
 
 func (f filter) Relations() []Relation {
-	return f.rs
+	return f.relations
 }
 
 func (f filter) Update(m map[string]interface{}) Op {
-	return newWriteOp(f.t.keySpace.qe, f, updateOpType, m)
+	return newWriteOp(f.table.keySpace.qe, f, updateOpType, m)
 }
 
 func (f filter) Delete() Op {
-	return newWriteOp(f.t.keySpace.qe, f, deleteOpType, nil)
+	return newWriteOp(f.table.keySpace.qe, f, deleteOpType, nil)
 }
 
 //
@@ -27,16 +27,16 @@ func (f filter) Delete() Op {
 
 func (f filter) Read(pointerToASlice interface{}) Op {
 	return &singleOp{
-		qe:     f.t.keySpace.qe,
-		f:      f,
+		qe:     f.table.keySpace.qe,
+		filter: f,
 		opType: readOpType,
 		result: pointerToASlice}
 }
 
 func (f filter) ReadOne(pointer interface{}) Op {
 	return &singleOp{
-		qe:     f.t.keySpace.qe,
-		f:      f,
+		qe:     f.table.keySpace.qe,
+		filter: f,
 		opType: singleReadOpType,
 		result: pointer}
 }

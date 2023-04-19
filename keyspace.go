@@ -46,7 +46,7 @@ func (k *k) NewTable(name string, entity interface{}, fields map[string]interfac
 		return k.tableFactory.NewTable(name, entity, fields, keys)
 	} else {
 		ti := newTableInfo(k.name, name, keys, entity, fields)
-		return &t{
+		return &table{
 			keySpace: k,
 			info:     ti,
 			options:  Options{},

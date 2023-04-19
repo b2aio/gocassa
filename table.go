@@ -7,7 +7,7 @@ import (
 	r "github.com/monzo/gocassa/reflect"
 )
 
-type t struct {
+type table struct {
 	keySpace *k
 	info     *tableInfo
 	options  Options
@@ -58,14 +58,14 @@ func toMap(i interface{}) (m map[string]interface{}, ok bool) {
 	return
 }
 
-func (t t) Where(rs ...Relation) Filter {
+func (t table) Where(rs ...Relation) Filter {
 	return filter{
-		t:  t,
-		rs: rs,
+		table:     t,
+		relations: rs,
 	}
 }
 
-func (t t) generateFieldList(sel []string) []string {
+func (t table) generateFieldList(sel []string) []string {
 	xs := make([]string, len(t.info.fields))
 	if len(sel) > 0 {
 		xs = sel
@@ -129,7 +129,7 @@ func allFieldValuesAreNullable(fields map[string]interface{}) bool {
 	return true
 }
 
-func (t t) Set(i interface{}) Op {
+func (t table) Set(i interface{}) Op {
 	m, ok := toMap(i)
 	if !ok {
 		panic("SetWithOptions: Incompatible type")
@@ -137,17 +137,17 @@ func (t t) Set(i interface{}) Op {
 	ks := append(t.info.keys.PartitionKeys, t.info.keys.ClusteringColumns...)
 	updFields := removeFields(m, ks)
 	if len(updFields) == 0 || allFieldValuesAreNullable(updFields) {
-		return newWriteOp(t.keySpace.qe, filter{t: t}, insertOpType, m)
+		return newWriteOp(t.keySpace.qe, filter{table: t}, insertOpType, m)
 	}
 	transformFields(updFields)
 	rels := relations(t.info.keys, m)
 	return newWriteOp(t.keySpace.qe, filter{
-		t:  t,
-		rs: rels,
+		table:     t,
+		relations: rels,
 	}, updateOpType, updFields)
 }
 
-func (t t) Create() error {
+func (t table) Create() error {
 	if stmt, err := t.CreateStatement(); err != nil {
 		return err
 	} else {
@@ -155,7 +155,7 @@ func (t t) Create() error {
 	}
 }
 
-func (t t) CreateIfNotExist() error {
+func (t table) CreateIfNotExist() error {
 	if stmt, err := t.CreateIfNotExistStatement(); err != nil {
 		return err
 	} else {
@@ -163,7 +163,7 @@ func (t t) CreateIfNotExist() error {
 	}
 }
 
-func (t t) Recreate() error {
+func (t table) Recreate() error {
 	if ex, err := t.keySpace.Exists(t.Name()); ex && err == nil {
 		if err := t.keySpace.DropTable(t.Name()); err != nil {
 			return err
@@ -174,7 +174,7 @@ func (t t) Recreate() error {
 	return t.Create()
 }
 
-func (t t) CreateStatement() (Statement, error) {
+func (t table) CreateStatement() (Statement, error) {
 	return createTable(t.keySpace.name,
 		t.Name(),
 		t.info.keys.PartitionKeys,
@@ -188,7 +188,7 @@ func (t t) CreateStatement() (Statement, error) {
 	)
 }
 
-func (t t) CreateIfNotExistStatement() (Statement, error) {
+func (t table) CreateIfNotExistStatement() (Statement, error) {
 	return createTableIfNotExist(t.keySpace.name,
 		t.Name(),
 		t.info.keys.PartitionKeys,
@@ -202,17 +202,17 @@ func (t t) CreateIfNotExistStatement() (Statement, error) {
 	)
 }
 
-func (t t) Name() string {
+func (t table) Name() string {
 	if len(t.options.TableName) > 0 {
 		return t.options.TableName
 	}
 	return t.info.name
 }
 
-func (table t) WithOptions(o Options) Table {
-	return t{
-		keySpace: table.keySpace,
-		info:     table.info,
-		options:  table.options.Merge(o),
+func (t table) WithOptions(o Options) Table {
+	return table{
+		keySpace: t.keySpace,
+		info:     t.info,
+		options:  t.options.Merge(o),
 	}
 }
