@@ -6,13 +6,13 @@ import (
 )
 
 type multiFlakeSeriesT struct {
-	t          Table
-	indexField string
-	idField    string
-	bucketSize time.Duration
+	table              Table
+	partitionKeyField  string
+	clusteringKeyField string
+	bucketSize         time.Duration
 }
 
-func (o *multiFlakeSeriesT) Table() Table                        { return o.t }
+func (o *multiFlakeSeriesT) Table() Table                        { return o.table }
 func (o *multiFlakeSeriesT) Create() error                       { return o.Table().Create() }
 func (o *multiFlakeSeriesT) CreateIfNotExist() error             { return o.Table().CreateIfNotExist() }
 func (o *multiFlakeSeriesT) Name() string                        { return o.Table().Name() }
@@ -22,14 +22,14 @@ func (o *multiFlakeSeriesT) CreateIfNotExistStatement() (Statement, error) {
 	return o.Table().CreateIfNotExistStatement()
 }
 
-func (o *multiFlakeSeriesT) Set(v interface{}) Op {
-	m, ok := toMap(v)
+func (o *multiFlakeSeriesT) Set(entity interface{}) Op {
+	m, ok := toMap(entity)
 	if !ok {
 		panic("Can't set: not able to convert")
 	}
-	id, ok := m[o.idField].(string)
+	id, ok := m[o.clusteringKeyField].(string)
 	if !ok {
-		panic(fmt.Sprintf("Id field (%s) is not present or is not a string", o.idField))
+		panic(fmt.Sprintf("Id field (%s) is not present or is not a string", o.clusteringKeyField))
 	}
 
 	timestamp, err := flakeToTime(id)
@@ -44,57 +44,57 @@ func (o *multiFlakeSeriesT) Set(v interface{}) Op {
 		Set(m)
 }
 
-func (o *multiFlakeSeriesT) Update(v interface{}, id string, m map[string]interface{}) Op {
-	timestamp, err := flakeToTime(id)
+func (o *multiFlakeSeriesT) Update(partitionKey interface{}, flakeID string, m map[string]interface{}) Op {
+	timestamp, err := flakeToTime(flakeID)
 	if err != nil {
 		return errOp{err: err}
 	}
 	bucket := bucket(timestamp, o.bucketSize)
 
 	return o.Table().
-		Where(Eq(o.indexField, v),
+		Where(Eq(o.partitionKeyField, partitionKey),
 			Eq(bucketFieldName, bucket),
 			Eq(flakeTimestampFieldName, timestamp),
-			Eq(o.idField, id)).
+			Eq(o.clusteringKeyField, flakeID)).
 		Update(m)
 }
 
-func (o *multiFlakeSeriesT) Delete(v interface{}, id string) Op {
-	timestamp, err := flakeToTime(id)
+func (o *multiFlakeSeriesT) Delete(partitionKey interface{}, flakeID string) Op {
+	timestamp, err := flakeToTime(flakeID)
 	if err != nil {
 		return errOp{err: err}
 	}
 	bucket := bucket(timestamp, o.bucketSize)
 
 	return o.Table().
-		Where(Eq(o.indexField, v),
+		Where(Eq(o.partitionKeyField, partitionKey),
 			Eq(bucketFieldName, bucket),
 			Eq(flakeTimestampFieldName, timestamp),
-			Eq(o.idField, id)).
+			Eq(o.clusteringKeyField, flakeID)).
 		Delete()
 }
 
-func (o *multiFlakeSeriesT) Read(v interface{}, id string, pointer interface{}) Op {
-	timestamp, err := flakeToTime(id)
+func (o *multiFlakeSeriesT) Read(partitionKey interface{}, flakeID string, pointer interface{}) Op {
+	timestamp, err := flakeToTime(flakeID)
 	if err != nil {
 		return errOp{err: err}
 	}
 	bucket := bucket(timestamp, o.bucketSize)
 	return o.Table().
-		Where(Eq(o.indexField, v),
+		Where(Eq(o.partitionKeyField, partitionKey),
 			Eq(bucketFieldName, bucket),
 			Eq(flakeTimestampFieldName, timestamp),
-			Eq(o.idField, id)).
+			Eq(o.clusteringKeyField, flakeID)).
 		ReadOne(pointer)
 }
 
-func (o *multiFlakeSeriesT) List(v interface{}, startTime, endTime time.Time, pointerToASlice interface{}) Op {
+func (o *multiFlakeSeriesT) List(partitionKey interface{}, startTime, endTime time.Time, pointerToASlice interface{}) Op {
 	buckets := []interface{}{}
-	for bucket := o.Buckets(v, startTime); bucket.Bucket().Before(endTime); bucket = bucket.Next() {
+	for bucket := o.Buckets(partitionKey, startTime); bucket.Bucket().Before(endTime); bucket = bucket.Next() {
 		buckets = append(buckets, bucket.Bucket())
 	}
 	return o.Table().
-		Where(Eq(o.indexField, v),
+		Where(Eq(o.partitionKeyField, partitionKey),
 			In(bucketFieldName, buckets...),
 			GTE(flakeTimestampFieldName, startTime),
 			LT(flakeTimestampFieldName, endTime)).
@@ -103,14 +103,14 @@ func (o *multiFlakeSeriesT) List(v interface{}, startTime, endTime time.Time, po
 
 func (o *multiFlakeSeriesT) Buckets(v interface{}, start time.Time) Buckets {
 	return bucketIter{
-		v:         start,
+		current:   start,
 		step:      o.bucketSize,
 		field:     bucketFieldName,
-		invariant: o.Table().Where(Eq(o.indexField, v))}
+		invariant: o.Table().Where(Eq(o.partitionKeyField, v))}
 }
 
-func (o *multiFlakeSeriesT) ListSince(v interface{}, id string, window time.Duration, pointerToASlice interface{}) Op {
-	startTime, err := flakeToTime(id)
+func (o *multiFlakeSeriesT) ListSince(partitionKey interface{}, flakeID string, window time.Duration, pointerToASlice interface{}) Op {
+	startTime, err := flakeToTime(flakeID)
 	if err != nil {
 		return errOp{err: err}
 	}
@@ -124,24 +124,24 @@ func (o *multiFlakeSeriesT) ListSince(v interface{}, id string, window time.Dura
 	}
 
 	buckets := []interface{}{}
-	for bucket := o.Buckets(v, startTime); bucket.Bucket().Before(endTime); bucket = bucket.Next() {
+	for bucket := o.Buckets(partitionKey, startTime); bucket.Bucket().Before(endTime); bucket = bucket.Next() {
 		buckets = append(buckets, bucket.Bucket())
 	}
 
 	return o.Table().
-		Where(Eq(o.indexField, v),
+		Where(Eq(o.partitionKeyField, partitionKey),
 			In(bucketFieldName, buckets),
 			GTE(flakeTimestampFieldName, startTime),
 			LT(flakeTimestampFieldName, endTime),
-			GT(o.idField, id)).
+			GT(o.clusteringKeyField, flakeID)).
 		Read(pointerToASlice)
 }
 
 func (o *multiFlakeSeriesT) WithOptions(opt Options) MultiFlakeSeriesTable {
 	return &multiFlakeSeriesT{
-		t:          o.Table().WithOptions(opt),
-		indexField: o.indexField,
-		idField:    o.idField,
-		bucketSize: o.bucketSize,
+		table:              o.Table().WithOptions(opt),
+		partitionKeyField:  o.partitionKeyField,
+		clusteringKeyField: o.clusteringKeyField,
+		bucketSize:         o.bucketSize,
 	}
 }

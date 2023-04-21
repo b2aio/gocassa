@@ -1,12 +1,12 @@
 package gocassa
 
 type multimapMkT struct {
-	t               Table
-	fieldsToIndexBy []string
-	idField         []string
+	table               Table
+	partitionKeyFields  []string
+	clusteringKeyFields []string
 }
 
-func (mm *multimapMkT) Table() Table                        { return mm.t }
+func (mm *multimapMkT) Table() Table                        { return mm.table }
 func (mm *multimapMkT) Create() error                       { return mm.Table().Create() }
 func (mm *multimapMkT) CreateIfNotExist() error             { return mm.Table().CreateIfNotExist() }
 func (mm *multimapMkT) Name() string                        { return mm.Table().Name() }
@@ -16,46 +16,46 @@ func (mm *multimapMkT) CreateIfNotExistStatement() (Statement, error) {
 	return mm.Table().CreateIfNotExistStatement()
 }
 
-func (mm *multimapMkT) Update(field, id map[string]interface{}, m map[string]interface{}) Op {
+func (mm *multimapMkT) Update(partitionKeys, clusteringKeys map[string]interface{}, m map[string]interface{}) Op {
 	return mm.Table().
-		Where(mm.ListOfEqualRelations(field, id)...).
+		Where(mm.ListOfEqualRelations(partitionKeys, clusteringKeys)...).
 		Update(m)
 }
 
-func (mm *multimapMkT) Set(v interface{}) Op {
+func (mm *multimapMkT) Set(entity interface{}) Op {
 	return mm.Table().
-		Set(v)
+		Set(entity)
 }
 
-func (mm *multimapMkT) Delete(field, id map[string]interface{}) Op {
+func (mm *multimapMkT) Delete(partitionKeys, clusteringKeys map[string]interface{}) Op {
 	return mm.Table().
-		Where(mm.ListOfEqualRelations(field, id)...).
+		Where(mm.ListOfEqualRelations(partitionKeys, clusteringKeys)...).
 		Delete()
 }
 
-func (mm *multimapMkT) DeleteAll(field map[string]interface{}) Op {
+func (mm *multimapMkT) DeleteAll(partitionKeys map[string]interface{}) Op {
 	return mm.Table().
-		Where(mm.ListOfEqualRelations(field, nil)...).
+		Where(mm.ListOfEqualRelations(partitionKeys, nil)...).
 		Delete()
 }
 
-func (mm *multimapMkT) Read(field, id map[string]interface{}, pointer interface{}) Op {
+func (mm *multimapMkT) Read(partitionKeys, clusteringKeys map[string]interface{}, pointer interface{}) Op {
 	return mm.Table().
-		Where(mm.ListOfEqualRelations(field, id)...).
+		Where(mm.ListOfEqualRelations(partitionKeys, clusteringKeys)...).
 		ReadOne(pointer)
 }
 
-func (mm *multimapMkT) MultiRead(field, id map[string]interface{}, pointerToASlice interface{}) Op {
+func (mm *multimapMkT) MultiRead(partitionKeys, clusteringKeys map[string]interface{}, pointerToASlice interface{}) Op {
 	return mm.Table().
-		Where(mm.ListOfEqualRelations(field, id)...).
+		Where(mm.ListOfEqualRelations(partitionKeys, clusteringKeys)...).
 		Read(pointerToASlice)
 }
 
-func (mm *multimapMkT) List(field, startId map[string]interface{}, limit int, pointerToASlice interface{}) Op {
-	rels := mm.ListOfEqualRelations(field, nil)
-	if startId != nil {
-		for _, field := range mm.idField {
-			if value := startId[field]; value != "" {
+func (mm *multimapMkT) List(partitionKeys, fromClusteringKeys map[string]interface{}, limit int, pointerToASlice interface{}) Op {
+	rels := mm.ListOfEqualRelations(partitionKeys, nil)
+	if fromClusteringKeys != nil {
+		for _, field := range mm.clusteringKeyFields {
+			if value := fromClusteringKeys[field]; value != "" {
 				rels = append(rels, GTE(field, value))
 			}
 		}
@@ -71,24 +71,24 @@ func (mm *multimapMkT) List(field, startId map[string]interface{}, limit int, po
 
 func (mm *multimapMkT) WithOptions(o Options) MultimapMkTable {
 	return &multimapMkT{
-		t:               mm.Table().WithOptions(o),
-		fieldsToIndexBy: mm.fieldsToIndexBy,
-		idField:         mm.idField,
+		table:               mm.Table().WithOptions(o),
+		partitionKeyFields:  mm.partitionKeyFields,
+		clusteringKeyFields: mm.clusteringKeyFields,
 	}
 }
 
-func (mm *multimapMkT) ListOfEqualRelations(fieldsToIndex, ids map[string]interface{}) []Relation {
+func (mm *multimapMkT) ListOfEqualRelations(partitionKeys, clusteringKeys map[string]interface{}) []Relation {
 	relations := make([]Relation, 0)
 
-	for _, field := range mm.fieldsToIndexBy {
-		if value := fieldsToIndex[field]; value != nil && value != "" {
+	for _, field := range mm.partitionKeyFields {
+		if value := partitionKeys[field]; value != nil && value != "" {
 			relation := Eq(field, value)
 			relations = append(relations, relation)
 		}
 	}
 
-	for _, field := range mm.idField {
-		if value := ids[field]; value != nil && value != "" {
+	for _, field := range mm.clusteringKeyFields {
+		if value := clusteringKeys[field]; value != nil && value != "" {
 			relation := Eq(field, value)
 			relations = append(relations, relation)
 		}

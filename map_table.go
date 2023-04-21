@@ -1,11 +1,11 @@
 package gocassa
 
 type mapT struct {
-	t                 Table
+	table             Table
 	partitionKeyField string
 }
 
-func (m *mapT) Table() Table                        { return m.t }
+func (m *mapT) Table() Table                        { return m.table }
 func (m *mapT) Create() error                       { return m.Table().Create() }
 func (m *mapT) CreateIfNotExist() error             { return m.Table().CreateIfNotExist() }
 func (m *mapT) Name() string                        { return m.Table().Name() }
@@ -21,9 +21,9 @@ func (m *mapT) Update(partitionKey interface{}, fieldMap map[string]interface{})
 		Update(fieldMap)
 }
 
-func (m *mapT) Set(v interface{}) Op {
+func (m *mapT) Set(entity interface{}) Op {
 	return m.Table().
-		Set(v)
+		Set(entity)
 }
 
 func (m *mapT) Delete(partitionKey interface{}) Op {
@@ -46,7 +46,7 @@ func (m *mapT) MultiRead(partitionKey []interface{}, pointerToASlice interface{}
 
 func (m *mapT) WithOptions(o Options) MapTable {
 	return &mapT{
-		t:                 m.Table().WithOptions(o),
+		table:             m.Table().WithOptions(o),
 		partitionKeyField: m.partitionKeyField,
 	}
 }

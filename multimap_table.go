@@ -1,12 +1,12 @@
 package gocassa
 
 type multimapT struct {
-	t                  Table
+	table              Table
 	partitionKeyField  string
 	clusteringKeyField string
 }
 
-func (mm *multimapT) Table() Table                        { return mm.t }
+func (mm *multimapT) Table() Table                        { return mm.table }
 func (mm *multimapT) Create() error                       { return mm.Table().Create() }
 func (mm *multimapT) CreateIfNotExist() error             { return mm.Table().CreateIfNotExist() }
 func (mm *multimapT) Name() string                        { return mm.Table().Name() }
@@ -16,16 +16,16 @@ func (mm *multimapT) CreateIfNotExistStatement() (Statement, error) {
 	return mm.Table().CreateIfNotExistStatement()
 }
 
-func (mm *multimapT) Update(field, id interface{}, m map[string]interface{}) Op {
+func (mm *multimapT) Update(partitionKey, clusteringKey interface{}, m map[string]interface{}) Op {
 	return mm.Table().
-		Where(Eq(mm.partitionKeyField, field),
-			Eq(mm.clusteringKeyField, id)).
+		Where(Eq(mm.partitionKeyField, partitionKey),
+			Eq(mm.clusteringKeyField, clusteringKey)).
 		Update(m)
 }
 
-func (mm *multimapT) Set(v interface{}) Op {
+func (mm *multimapT) Set(entity interface{}) Op {
 	return mm.Table().
-		Set(v)
+		Set(entity)
 }
 
 func (mm *multimapT) Delete(partitionKey, clusteringKey interface{}) Op {
@@ -62,7 +62,7 @@ func (mm *multimapT) List(partitionKey, fromClusteringKey interface{}, limit int
 
 func (mm *multimapT) WithOptions(o Options) MultimapTable {
 	return &multimapT{
-		t:                  mm.Table().WithOptions(o),
+		table:              mm.Table().WithOptions(o),
 		partitionKeyField:  mm.partitionKeyField,
 		clusteringKeyField: mm.clusteringKeyField,
 	}

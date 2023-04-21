@@ -60,7 +60,7 @@ func (k *k) MapTable(tableNamePrefix, partitionKeyField string, entity interface
 		panic("Unrecognized row type")
 	}
 	return &mapT{
-		t: k.NewTable(fmt.Sprintf("%s_map_%s", tableNamePrefix, partitionKeyField), entity, m, Keys{
+		table: k.NewTable(fmt.Sprintf("%s_map_%s", tableNamePrefix, partitionKeyField), entity, m, Keys{
 			PartitionKeys: []string{partitionKeyField},
 		}),
 		partitionKeyField: partitionKeyField,
@@ -77,7 +77,7 @@ func (k *k) MultimapTable(tableNamePrefix, partitionKeyField, clusteringKeyField
 		panic("Unrecognized row type")
 	}
 	return &multimapT{
-		t: k.NewTable(fmt.Sprintf("%s_multimap_%s_%s", tableNamePrefix, partitionKeyField, clusteringKeyField), entity, m, Keys{
+		table: k.NewTable(fmt.Sprintf("%s_multimap_%s_%s", tableNamePrefix, partitionKeyField, clusteringKeyField), entity, m, Keys{
 			PartitionKeys:     []string{partitionKeyField},
 			ClusteringColumns: []string{clusteringKeyField},
 		}),
@@ -92,12 +92,12 @@ func (k *k) MultimapMultiKeyTable(tableNamePrefix string, partitionKeyFields, cl
 		panic("Unrecognized row type")
 	}
 	return &multimapMkT{
-		t: k.NewTable(fmt.Sprintf("%s_multimapMk", tableNamePrefix), entity, m, Keys{
+		table: k.NewTable(fmt.Sprintf("%s_multimapMk", tableNamePrefix), entity, m, Keys{
 			PartitionKeys:     partitionKeyFields,
 			ClusteringColumns: clusteringKeyFields,
 		}),
-		idField:         clusteringKeyFields,
-		fieldsToIndexBy: partitionKeyFields,
+		clusteringKeyFields: clusteringKeyFields,
+		partitionKeyFields:  partitionKeyFields,
 	}
 }
 
@@ -108,13 +108,13 @@ func (k *k) TimeSeriesTable(tableNamePrefix, timeField, clusteringKeyField strin
 	}
 	m[bucketFieldName] = time.Now()
 	return &timeSeriesT{
-		t: k.NewTable(fmt.Sprintf("%s_timeSeries_%s_%s_%s", tableNamePrefix, timeField, clusteringKeyField, bucketSize), entity, m, Keys{
+		table: k.NewTable(fmt.Sprintf("%s_timeSeries_%s_%s_%s", tableNamePrefix, timeField, clusteringKeyField, bucketSize), entity, m, Keys{
 			PartitionKeys:     []string{bucketFieldName},
 			ClusteringColumns: []string{timeField, clusteringKeyField},
 		}),
-		timeField:  timeField,
-		idField:    clusteringKeyField,
-		bucketSize: bucketSize,
+		timeField:          timeField,
+		clusteringKeyField: clusteringKeyField,
+		bucketSize:         bucketSize,
 	}
 }
 
@@ -125,14 +125,14 @@ func (k *k) MultiTimeSeriesTable(tableNamePrefix, partitionKeyField, timeField, 
 	}
 	m[bucketFieldName] = time.Now()
 	return &multiTimeSeriesT{
-		t: k.NewTable(fmt.Sprintf("%s_multiTimeSeries_%s_%s_%s_%s", tableNamePrefix, partitionKeyField, timeField, clusteringKeyField, bucketSize.String()), entity, m, Keys{
+		table: k.NewTable(fmt.Sprintf("%s_multiTimeSeries_%s_%s_%s_%s", tableNamePrefix, partitionKeyField, timeField, clusteringKeyField, bucketSize.String()), entity, m, Keys{
 			PartitionKeys:     []string{partitionKeyField, bucketFieldName},
 			ClusteringColumns: []string{timeField, clusteringKeyField},
 		}),
-		indexField: partitionKeyField,
-		timeField:  timeField,
-		idField:    clusteringKeyField,
-		bucketSize: bucketSize,
+		partitionKeyField:  partitionKeyField,
+		timeField:          timeField,
+		clusteringKeyField: clusteringKeyField,
+		bucketSize:         bucketSize,
 	}
 }
 
@@ -149,14 +149,14 @@ func (k *k) MultiKeyTimeSeriesTable(tableNamePrefix string, partitionKeyFields [
 
 	m[bucketFieldName] = time.Now()
 	return &multiKeyTimeSeriesT{
-		t: k.NewTable(fmt.Sprintf("%s_multiKeyTimeSeries_%s_%s", tableNamePrefix, timeField, bucketSize.String()), entity, m, Keys{
+		table: k.NewTable(fmt.Sprintf("%s_multiKeyTimeSeries_%s_%s", tableNamePrefix, timeField, bucketSize.String()), entity, m, Keys{
 			PartitionKeys:     partitionKeys,
 			ClusteringColumns: clusteringColumns,
 		}),
-		indexFields: partitionKeyFields,
-		timeField:   timeField,
-		idFields:    clusteringKeyFields,
-		bucketSize:  bucketSize,
+		partitionKeyFields:  partitionKeyFields,
+		timeField:           timeField,
+		clusteringKeyFields: clusteringKeyFields,
+		bucketSize:          bucketSize,
 	}
 }
 
@@ -168,12 +168,12 @@ func (k *k) FlakeSeriesTable(tableNamePrefix, flakeIDField string, bucketSize ti
 	m[flakeTimestampFieldName] = time.Now()
 	m[bucketFieldName] = time.Now()
 	return &flakeSeriesT{
-		t: k.NewTable(fmt.Sprintf("%s_flakeSeries_%s_%s", tableNamePrefix, flakeIDField, bucketSize.String()), entity, m, Keys{
+		table: k.NewTable(fmt.Sprintf("%s_flakeSeries_%s_%s", tableNamePrefix, flakeIDField, bucketSize.String()), entity, m, Keys{
 			PartitionKeys:     []string{bucketFieldName},
 			ClusteringColumns: []string{flakeTimestampFieldName, flakeIDField},
 		}),
-		idField:    flakeIDField,
-		bucketSize: bucketSize,
+		clusteringKeyField: flakeIDField,
+		bucketSize:         bucketSize,
 	}
 }
 
@@ -185,13 +185,13 @@ func (k *k) MultiFlakeSeriesTable(tableNamePrefix, partitionKeyField, flakeIDFie
 	m[flakeTimestampFieldName] = time.Now()
 	m[bucketFieldName] = time.Now()
 	return &multiFlakeSeriesT{
-		t: k.NewTable(fmt.Sprintf("%s_multiflakeSeries_%s_%s_%s", tableNamePrefix, partitionKeyField, flakeIDField, bucketSize.String()), entity, m, Keys{
+		table: k.NewTable(fmt.Sprintf("%s_multiflakeSeries_%s_%s_%s", tableNamePrefix, partitionKeyField, flakeIDField, bucketSize.String()), entity, m, Keys{
 			PartitionKeys:     []string{partitionKeyField, bucketFieldName},
 			ClusteringColumns: []string{flakeTimestampFieldName, flakeIDField},
 		}),
-		idField:    flakeIDField,
-		bucketSize: bucketSize,
-		indexField: partitionKeyField,
+		clusteringKeyField: flakeIDField,
+		bucketSize:         bucketSize,
+		partitionKeyField:  partitionKeyField,
 	}
 }
 

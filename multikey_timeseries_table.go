@@ -5,25 +5,27 @@ import (
 )
 
 type multiKeyTimeSeriesT struct {
-	t           Table
-	indexFields []string
-	timeField   string
-	idFields    []string
-	bucketSize  time.Duration
+	table               Table
+	partitionKeyFields  []string
+	timeField           string
+	clusteringKeyFields []string
+	bucketSize          time.Duration
 }
 
-func (o *multiKeyTimeSeriesT) Table() Table                        { return o.t }
-func (o *multiKeyTimeSeriesT) Create() error                       { return o.Table().Create() }
-func (o *multiKeyTimeSeriesT) CreateIfNotExist() error             { return o.Table().CreateIfNotExist() }
-func (o *multiKeyTimeSeriesT) Name() string                        { return o.Table().Name() }
-func (o *multiKeyTimeSeriesT) Recreate() error                     { return o.Table().Recreate() }
-func (o *multiKeyTimeSeriesT) CreateStatement() (Statement, error) { return o.Table().CreateStatement() }
+func (o *multiKeyTimeSeriesT) Table() Table            { return o.table }
+func (o *multiKeyTimeSeriesT) Create() error           { return o.Table().Create() }
+func (o *multiKeyTimeSeriesT) CreateIfNotExist() error { return o.Table().CreateIfNotExist() }
+func (o *multiKeyTimeSeriesT) Name() string            { return o.Table().Name() }
+func (o *multiKeyTimeSeriesT) Recreate() error         { return o.Table().Recreate() }
+func (o *multiKeyTimeSeriesT) CreateStatement() (Statement, error) {
+	return o.Table().CreateStatement()
+}
 func (o *multiKeyTimeSeriesT) CreateIfNotExistStatement() (Statement, error) {
 	return o.Table().CreateIfNotExistStatement()
 }
 
-func (o *multiKeyTimeSeriesT) Set(v interface{}) Op {
-	m, ok := toMap(v)
+func (o *multiKeyTimeSeriesT) Set(entity interface{}) Op {
+	m, ok := toMap(entity)
 	if !ok {
 		panic("Can't set: not able to convert")
 	}
@@ -36,36 +38,36 @@ func (o *multiKeyTimeSeriesT) Set(v interface{}) Op {
 		Set(m)
 }
 
-func (o *multiKeyTimeSeriesT) Update(v map[string]interface{}, timeStamp time.Time, id map[string]interface{}, m map[string]interface{}) Op {
-	bucket := bucket(timeStamp, o.bucketSize)
+func (o *multiKeyTimeSeriesT) Update(partitionKeys map[string]interface{}, timestamp time.Time, clusteringKeys map[string]interface{}, m map[string]interface{}) Op {
+	bucket := bucket(timestamp, o.bucketSize)
 	relations := make([]Relation, 0)
-	relations = append(relations, o.ListOfEqualRelations(v, id)...)
+	relations = append(relations, o.ListOfEqualRelations(partitionKeys, clusteringKeys)...)
 	relations = append(relations, Eq(bucketFieldName, bucket))
-	relations = append(relations, Eq(o.timeField, timeStamp))
+	relations = append(relations, Eq(o.timeField, timestamp))
 
 	return o.Table().
 		Where(relations...).
 		Update(m)
 }
 
-func (o *multiKeyTimeSeriesT) Delete(v map[string]interface{}, timeStamp time.Time, id map[string]interface{}) Op {
-	bucket := bucket(timeStamp, o.bucketSize)
+func (o *multiKeyTimeSeriesT) Delete(partitionKeys map[string]interface{}, timestamp time.Time, clusteringKeys map[string]interface{}) Op {
+	bucket := bucket(timestamp, o.bucketSize)
 	relations := make([]Relation, 0)
-	relations = append(relations, o.ListOfEqualRelations(v, id)...)
+	relations = append(relations, o.ListOfEqualRelations(partitionKeys, clusteringKeys)...)
 	relations = append(relations, Eq(bucketFieldName, bucket))
-	relations = append(relations, Eq(o.timeField, timeStamp))
+	relations = append(relations, Eq(o.timeField, timestamp))
 
 	return o.Table().
 		Where(relations...).
 		Delete()
 }
 
-func (o *multiKeyTimeSeriesT) Read(v map[string]interface{}, timeStamp time.Time, id map[string]interface{}, pointer interface{}) Op {
-	bucket := bucket(timeStamp, o.bucketSize)
+func (o *multiKeyTimeSeriesT) Read(partitionKeys map[string]interface{}, timestamp time.Time, clusteringKeys map[string]interface{}, pointer interface{}) Op {
+	bucket := bucket(timestamp, o.bucketSize)
 	relations := make([]Relation, 0)
-	relations = append(relations, o.ListOfEqualRelations(v, id)...)
+	relations = append(relations, o.ListOfEqualRelations(partitionKeys, clusteringKeys)...)
 	relations = append(relations, Eq(bucketFieldName, bucket))
-	relations = append(relations, Eq(o.timeField, timeStamp))
+	relations = append(relations, Eq(o.timeField, timestamp))
 
 	return o.Table().
 		Where(relations...).
@@ -73,14 +75,14 @@ func (o *multiKeyTimeSeriesT) Read(v map[string]interface{}, timeStamp time.Time
 
 }
 
-func (o *multiKeyTimeSeriesT) List(v map[string]interface{}, startTime time.Time, endTime time.Time, pointerToASlice interface{}) Op {
+func (o *multiKeyTimeSeriesT) List(partitionKeys map[string]interface{}, startTime time.Time, endTime time.Time, pointerToASlice interface{}) Op {
 	buckets := []interface{}{}
-	for bucket := o.Buckets(v, startTime); bucket.Bucket().Before(endTime); bucket = bucket.Next() {
+	for bucket := o.Buckets(partitionKeys, startTime); bucket.Bucket().Before(endTime); bucket = bucket.Next() {
 		buckets = append(buckets, bucket.Bucket())
 	}
 
 	relations := make([]Relation, 0)
-	relations = append(relations, o.ListOfEqualRelations(v, nil)...)
+	relations = append(relations, o.ListOfEqualRelations(partitionKeys, nil)...)
 	relations = append(relations, In(bucketFieldName, buckets...))
 	relations = append(relations, GTE(o.timeField, startTime))
 	relations = append(relations, LTE(o.timeField, endTime))
@@ -90,36 +92,36 @@ func (o *multiKeyTimeSeriesT) List(v map[string]interface{}, startTime time.Time
 		Read(pointerToASlice)
 }
 
-func (o *multiKeyTimeSeriesT) Buckets(v map[string]interface{}, start time.Time) Buckets {
+func (o *multiKeyTimeSeriesT) Buckets(partitionKeys map[string]interface{}, start time.Time) Buckets {
 	return bucketIter{
-		v:         start,
+		current:   start,
 		step:      o.bucketSize,
 		field:     bucketFieldName,
-		invariant: o.Table().Where(o.ListOfEqualRelations(v, nil)...)}
+		invariant: o.Table().Where(o.ListOfEqualRelations(partitionKeys, nil)...)}
 }
 
 func (o *multiKeyTimeSeriesT) WithOptions(opt Options) MultiKeyTimeSeriesTable {
 	return &multiKeyTimeSeriesT{
-		t:           o.Table().WithOptions(opt),
-		indexFields: o.indexFields,
-		timeField:   o.timeField,
-		idFields:    o.idFields,
-		bucketSize:  o.bucketSize,
+		table:               o.Table().WithOptions(opt),
+		partitionKeyFields:  o.partitionKeyFields,
+		timeField:           o.timeField,
+		clusteringKeyFields: o.clusteringKeyFields,
+		bucketSize:          o.bucketSize,
 	}
 }
 
-func (o *multiKeyTimeSeriesT) ListOfEqualRelations(fieldsToIndex, ids map[string]interface{}) []Relation {
+func (o *multiKeyTimeSeriesT) ListOfEqualRelations(partitionKeys, clusteringKeys map[string]interface{}) []Relation {
 	relations := make([]Relation, 0)
 
-	for _, field := range o.indexFields {
-		if value := fieldsToIndex[field]; value != nil && value != "" {
+	for _, field := range o.partitionKeyFields {
+		if value := partitionKeys[field]; value != nil && value != "" {
 			relation := Eq(field, value)
 			relations = append(relations, relation)
 		}
 	}
 
-	for _, field := range o.idFields {
-		if value := ids[field]; value != nil && value != "" {
+	for _, field := range o.clusteringKeyFields {
+		if value := clusteringKeys[field]; value != nil && value != "" {
 			relation := Eq(field, value)
 			relations = append(relations, relation)
 		}

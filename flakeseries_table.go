@@ -16,12 +16,12 @@ import (
 const flakeTimestampFieldName = "flake_created"
 
 type flakeSeriesT struct {
-	t          Table
-	idField    string
-	bucketSize time.Duration
+	table              Table
+	clusteringKeyField string
+	bucketSize         time.Duration
 }
 
-func (o *flakeSeriesT) Table() Table                        { return o.t }
+func (o *flakeSeriesT) Table() Table                        { return o.table }
 func (o *flakeSeriesT) Create() error                       { return o.Table().Create() }
 func (o *flakeSeriesT) CreateIfNotExist() error             { return o.Table().CreateIfNotExist() }
 func (o *flakeSeriesT) Name() string                        { return o.Table().Name() }
@@ -31,14 +31,14 @@ func (o *flakeSeriesT) CreateIfNotExistStatement() (Statement, error) {
 	return o.Table().CreateIfNotExistStatement()
 }
 
-func (o *flakeSeriesT) Set(v interface{}) Op {
-	m, ok := toMap(v)
+func (o *flakeSeriesT) Set(entity interface{}) Op {
+	m, ok := toMap(entity)
 	if !ok {
 		panic("Can't set: not able to convert")
 	}
-	id, ok := m[o.idField].(string)
+	id, ok := m[o.clusteringKeyField].(string)
 	if !ok {
-		panic(fmt.Sprintf("Id field (%s) is not present or is not a string", o.idField))
+		panic(fmt.Sprintf("Id field (%s) is not present or is not a string", o.clusteringKeyField))
 	}
 
 	timestamp, err := flakeToTime(id)
@@ -52,8 +52,8 @@ func (o *flakeSeriesT) Set(v interface{}) Op {
 	return o.Table().Set(m)
 }
 
-func (o *flakeSeriesT) Update(id string, m map[string]interface{}) Op {
-	timestamp, err := flakeToTime(id)
+func (o *flakeSeriesT) Update(flakeID string, m map[string]interface{}) Op {
+	timestamp, err := flakeToTime(flakeID)
 	if err != nil {
 		return errOp{err: err}
 	}
@@ -62,12 +62,12 @@ func (o *flakeSeriesT) Update(id string, m map[string]interface{}) Op {
 	return o.Table().
 		Where(Eq(bucketFieldName, bucket),
 			Eq(flakeTimestampFieldName, timestamp),
-			Eq(o.idField, id)).
+			Eq(o.clusteringKeyField, flakeID)).
 		Update(m)
 }
 
-func (o *flakeSeriesT) Delete(id string) Op {
-	timestamp, err := flakeToTime(id)
+func (o *flakeSeriesT) Delete(flakeID string) Op {
+	timestamp, err := flakeToTime(flakeID)
 	if err != nil {
 		return errOp{err: err}
 	}
@@ -76,12 +76,12 @@ func (o *flakeSeriesT) Delete(id string) Op {
 	return o.Table().
 		Where(Eq(bucketFieldName, bucket),
 			Eq(flakeTimestampFieldName, timestamp),
-			Eq(o.idField, id)).
+			Eq(o.clusteringKeyField, flakeID)).
 		Delete()
 }
 
-func (o *flakeSeriesT) Read(id string, pointer interface{}) Op {
-	timestamp, err := flakeToTime(id)
+func (o *flakeSeriesT) Read(flakeID string, pointer interface{}) Op {
+	timestamp, err := flakeToTime(flakeID)
 	if err != nil {
 		return errOp{err: err}
 	}
@@ -89,7 +89,7 @@ func (o *flakeSeriesT) Read(id string, pointer interface{}) Op {
 	return o.Table().
 		Where(Eq(bucketFieldName, bucket),
 			Eq(flakeTimestampFieldName, timestamp),
-			Eq(o.idField, id)).
+			Eq(o.clusteringKeyField, flakeID)).
 		ReadOne(pointer)
 }
 
@@ -107,14 +107,14 @@ func (o *flakeSeriesT) List(startTime, endTime time.Time, pointerToASlice interf
 
 func (o *flakeSeriesT) Buckets(start time.Time) Buckets {
 	return bucketIter{
-		v:         start,
+		current:   start,
 		step:      o.bucketSize,
 		field:     bucketFieldName,
 		invariant: o.Table().Where()}
 }
 
-func (o *flakeSeriesT) ListSince(id string, window time.Duration, pointerToASlice interface{}) Op {
-	startTime, err := flakeToTime(id)
+func (o *flakeSeriesT) ListSince(flakeID string, window time.Duration, pointerToASlice interface{}) Op {
+	startTime, err := flakeToTime(flakeID)
 	if err != nil {
 		return errOp{err: err}
 	}
@@ -136,15 +136,15 @@ func (o *flakeSeriesT) ListSince(id string, window time.Duration, pointerToASlic
 		Where(In(bucketFieldName, buckets),
 			GTE(flakeTimestampFieldName, startTime),
 			LT(flakeTimestampFieldName, endTime),
-			GT(o.idField, id)).
+			GT(o.clusteringKeyField, flakeID)).
 		Read(pointerToASlice)
 }
 
 func (o *flakeSeriesT) WithOptions(opt Options) FlakeSeriesTable {
 	return &flakeSeriesT{
-		t:          o.Table().WithOptions(opt),
-		idField:    o.idField,
-		bucketSize: o.bucketSize}
+		table:              o.Table().WithOptions(opt),
+		clusteringKeyField: o.clusteringKeyField,
+		bucketSize:         o.bucketSize}
 }
 
 func flakeToTime(id string) (time.Time, error) {

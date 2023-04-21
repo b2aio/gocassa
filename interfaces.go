@@ -77,8 +77,8 @@ type KeySpace interface {
 type MapTable interface {
 	// Set Inserts, or Replaces your row with the supplied struct. Be aware that what is not in your struct
 	// will be deleted. To only overwrite some of the fields, Update()
-	Set(rowStruct interface{}) Op
-	Update(partitionKey interface{}, valuesToUpdate map[string]interface{}) Op
+	Set(entity interface{}) Op
+	Update(partitionKey interface{}, fieldUpdates map[string]interface{}) Op
 	Delete(partitionKey interface{}) Op
 	Read(partitionKey, pointer interface{}) Op
 	MultiRead(partitionKeys []interface{}, pointerToASlice interface{}) Op
@@ -94,13 +94,13 @@ type MapTable interface {
 type MultimapTable interface {
 	// Set Inserts, or Replaces your row with the supplied struct. Be aware that what is not in your struct
 	// will be deleted. To only overwrite some of the fields, Update()
-	Set(rowStruct interface{}) Op
-	Update(value, id interface{}, valuesToUpdate map[string]interface{}) Op
-	Delete(value, id interface{}) Op
-	DeleteAll(value interface{}) Op
+	Set(entity interface{}) Op
+	Update(partitionKey, clusteringKey interface{}, fieldUpdates map[string]interface{}) Op
+	Delete(partitionKey, clusteringKey interface{}) Op
+	DeleteAll(partitionKey interface{}) Op
 	// List populates the provided pointer to a slice with the results matching the keys provided.
 	// To disable the limit, set limit to 0
-	List(partitionKey, clusteringKey interface{}, limit int, pointerToASlice interface{}) Op
+	List(partitionKey, fromClusteringKey interface{}, limit int, pointerToASlice interface{}) Op
 	Read(partitionKey, clusteringKey, pointer interface{}) Op
 	WithOptions(Options) MultimapTable
 	Table() Table
@@ -110,15 +110,15 @@ type MultimapTable interface {
 type MultimapMkTable interface {
 	// Set Inserts, or Replaces your row with the supplied struct. Be aware that what is not in your struct
 	// will be deleted. To only overwrite some of the fields, Update()
-	Set(rowStruct interface{}) Op
-	Update(v, id map[string]interface{}, valuesToUpdate map[string]interface{}) Op
-	Delete(v, id map[string]interface{}) Op
-	DeleteAll(v map[string]interface{}) Op
+	Set(entity interface{}) Op
+	Update(partitionKeys, clusteringKeys map[string]interface{}, fieldUpdates map[string]interface{}) Op
+	Delete(partitionKeys, clusteringKeys map[string]interface{}) Op
+	DeleteAll(partitionKeys map[string]interface{}) Op
 	// List populates the provided pointer to a slice with the results matching the keys provided.
 	// To disable the limit, set limit to 0
-	List(v, startId map[string]interface{}, limit int, pointerToASlice interface{}) Op
-	Read(v, id map[string]interface{}, pointer interface{}) Op
-	MultiRead(v, id map[string]interface{}, pointerToASlice interface{}) Op
+	List(partitionKeys, fromClusteringKeys map[string]interface{}, limit int, pointerToASlice interface{}) Op
+	Read(partitionKeys, clusteringKeys map[string]interface{}, pointer interface{}) Op
+	MultiRead(partitionKeys, clusteringKeys map[string]interface{}, pointerToASlice interface{}) Op
 	WithOptions(Options) MultimapMkTable
 	Table() Table
 	TableChanger
@@ -133,10 +133,10 @@ type TimeSeriesTable interface {
 
 	// Set Inserts, or Replaces your row with the supplied struct. Be aware that what is not in your struct
 	// will be deleted. To only overwrite some of the fields, Update()
-	Set(rowStruct interface{}) Op
-	Update(timeStamp time.Time, id interface{}, valuesToUpdate map[string]interface{}) Op
-	Delete(timeStamp time.Time, id interface{}) Op
-	Read(timeStamp time.Time, id, pointer interface{}) Op
+	Set(entity interface{}) Op
+	Update(timestamp time.Time, clusteringKey interface{}, fieldUpdates map[string]interface{}) Op
+	Delete(timestamp time.Time, clusteringKey interface{}) Op
+	Read(timestamp time.Time, clusteringKey, pointer interface{}) Op
 	List(start, end time.Time, pointerToASlice interface{}) Op
 	Buckets(start time.Time) Buckets
 	WithOptions(Options) TimeSeriesTable
@@ -153,12 +153,12 @@ type MultiTimeSeriesTable interface {
 
 	// Set Inserts, or Replaces your row with the supplied struct. Be aware that what is not in your struct
 	// will be deleted. To only overwrite some of the fields, Update()
-	Set(rowStruct interface{}) Op
-	Update(v interface{}, timeStamp time.Time, id interface{}, valuesToUpdate map[string]interface{}) Op
-	Delete(v interface{}, timeStamp time.Time, id interface{}) Op
-	Read(v interface{}, timeStamp time.Time, id, pointer interface{}) Op
-	List(v interface{}, start, end time.Time, pointerToASlice interface{}) Op
-	Buckets(v interface{}, start time.Time) Buckets
+	Set(entity interface{}) Op
+	Update(partitionKey interface{}, timestamp time.Time, clusteringKey interface{}, fieldUpdates map[string]interface{}) Op
+	Delete(partitionKey interface{}, timestamp time.Time, clusteringKey interface{}) Op
+	Read(partitionKey interface{}, timestamp time.Time, clusteringKey, pointer interface{}) Op
+	List(partitionKey interface{}, start, end time.Time, pointerToASlice interface{}) Op
+	Buckets(partitionKey interface{}, start time.Time) Buckets
 	WithOptions(Options) MultiTimeSeriesTable
 	Table() Table
 	TableChanger
@@ -170,12 +170,12 @@ type MultiKeyTimeSeriesTable interface {
 
 	// Set Inserts, or Replaces your row with the supplied struct. Be aware that what is not in your struct
 	// will be deleted. To only overwrite some of the fields, Update()
-	Set(rowStruct interface{}) Op
-	Update(v map[string]interface{}, timeStamp time.Time, id map[string]interface{}, valuesToUpdate map[string]interface{}) Op
-	Delete(v map[string]interface{}, timeStamp time.Time, id map[string]interface{}) Op
-	Read(v map[string]interface{}, timeStamp time.Time, id map[string]interface{}, pointer interface{}) Op
-	List(v map[string]interface{}, start, end time.Time, pointerToASlice interface{}) Op
-	Buckets(v map[string]interface{}, start time.Time) Buckets
+	Set(entity interface{}) Op
+	Update(partitionKeys map[string]interface{}, timestamp time.Time, clusteringKey map[string]interface{}, fieldUpdates map[string]interface{}) Op
+	Delete(partitionKeys map[string]interface{}, timestamp time.Time, clusteringKey map[string]interface{}) Op
+	Read(partitionKeys map[string]interface{}, timestamp time.Time, clusteringKey map[string]interface{}, pointer interface{}) Op
+	List(partitionKeys map[string]interface{}, start, end time.Time, pointerToASlice interface{}) Op
+	Buckets(partitionKeys map[string]interface{}, start time.Time) Buckets
 	WithOptions(Options) MultiKeyTimeSeriesTable
 	Table() Table
 	TableChanger
@@ -184,15 +184,15 @@ type MultiKeyTimeSeriesTable interface {
 type FlakeSeriesTable interface {
 	// Set Inserts, or Replaces your row with the supplied struct. Be aware that what is not in your struct
 	// will be deleted. To only overwrite some of the fields, Update()
-	Set(rowStruct interface{}) Op
-	Update(id string, valuesToUpdate map[string]interface{}) Op
-	Delete(id string) Op
-	Read(id string, pointer interface{}) Op
+	Set(entity interface{}) Op
+	Update(flakeID string, fieldUpdates map[string]interface{}) Op
+	Delete(flakeID string) Op
+	Read(flakeID string, pointer interface{}) Op
 	List(start, end time.Time, pointerToASlice interface{}) Op
 	Buckets(start time.Time) Buckets
 	// ListSince queries the flakeSeries for the items after the specified ID but within the time window,
 	// if the time window is zero then it lists up until 5 minutes in the future
-	ListSince(id string, window time.Duration, pointerToASlice interface{}) Op
+	ListSince(flakeID string, window time.Duration, pointerToASlice interface{}) Op
 	WithOptions(Options) FlakeSeriesTable
 	Table() Table
 	TableChanger
@@ -201,15 +201,15 @@ type FlakeSeriesTable interface {
 type MultiFlakeSeriesTable interface {
 	// Set Inserts, or Replaces your row with the supplied struct. Be aware that what is not in your struct
 	// will be deleted. To only overwrite some of the fields, Update()
-	Set(rowStruct interface{}) Op
-	Update(v interface{}, id string, valuesToUpdate map[string]interface{}) Op
-	Delete(v interface{}, id string) Op
-	Read(v interface{}, id string, pointer interface{}) Op
-	List(v interface{}, start, end time.Time, pointerToASlice interface{}) Op
-	Buckets(v interface{}, start time.Time) Buckets
+	Set(entity interface{}) Op
+	Update(partitionKey interface{}, flakeID string, fieldUpdates map[string]interface{}) Op
+	Delete(partitionKey interface{}, flakeID string) Op
+	Read(partitionKey interface{}, flakeID string, pointer interface{}) Op
+	List(partitionKey interface{}, start, end time.Time, pointerToASlice interface{}) Op
+	Buckets(partitionKey interface{}, start time.Time) Buckets
 	// ListSince queries the flakeSeries for the items after the specified ID but within the time window,
 	// if the time window is zero then it lists up until 5 minutes in the future
-	ListSince(v interface{}, id string, window time.Duration, pointerToASlice interface{}) Op
+	ListSince(partitionKey interface{}, flakeID string, window time.Duration, pointerToASlice interface{}) Op
 	WithOptions(Options) MultiFlakeSeriesTable
 	Table() Table
 	TableChanger
