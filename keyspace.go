@@ -30,8 +30,8 @@ func (k *k) DebugMode(b bool) {
 	k.debugMode = b
 }
 
-func (k *k) Table(name string, entity interface{}, keys Keys) Table {
-	n := name + "__" + strings.Join(keys.PartitionKeys, "_") + "__" + strings.Join(keys.ClusteringColumns, "_")
+func (k *k) Table(tableNamePrefix string, entity interface{}, keys Keys) Table {
+	n := tableNamePrefix + "__" + strings.Join(keys.PartitionKeys, "_") + "__" + strings.Join(keys.ClusteringColumns, "_")
 	m, ok := toMap(entity)
 	if !ok {
 		panic("Unrecognized row type")
@@ -54,13 +54,13 @@ func (k *k) NewTable(name string, entity interface{}, fields map[string]interfac
 	}
 }
 
-func (k *k) MapTable(name, partitionKeyField string, row interface{}) MapTable {
-	m, ok := toMap(row)
+func (k *k) MapTable(tableNamePrefix, partitionKeyField string, entity interface{}) MapTable {
+	m, ok := toMap(entity)
 	if !ok {
 		panic("Unrecognized row type")
 	}
 	return &mapT{
-		t: k.NewTable(fmt.Sprintf("%s_map_%s", name, partitionKeyField), row, m, Keys{
+		t: k.NewTable(fmt.Sprintf("%s_map_%s", tableNamePrefix, partitionKeyField), entity, m, Keys{
 			PartitionKeys: []string{partitionKeyField},
 		}),
 		partitionKeyField: partitionKeyField,
@@ -71,13 +71,13 @@ func (k *k) SetKeysSpaceName(name string) {
 	k.name = name
 }
 
-func (k *k) MultimapTable(name, partitionKeyField, clusteringKeyField string, row interface{}) MultimapTable {
-	m, ok := toMap(row)
+func (k *k) MultimapTable(tableNamePrefix, partitionKeyField, clusteringKeyField string, entity interface{}) MultimapTable {
+	m, ok := toMap(entity)
 	if !ok {
 		panic("Unrecognized row type")
 	}
 	return &multimapT{
-		t: k.NewTable(fmt.Sprintf("%s_multimap_%s_%s", name, partitionKeyField, clusteringKeyField), row, m, Keys{
+		t: k.NewTable(fmt.Sprintf("%s_multimap_%s_%s", tableNamePrefix, partitionKeyField, clusteringKeyField), entity, m, Keys{
 			PartitionKeys:     []string{partitionKeyField},
 			ClusteringColumns: []string{clusteringKeyField},
 		}),
@@ -86,112 +86,112 @@ func (k *k) MultimapTable(name, partitionKeyField, clusteringKeyField string, ro
 	}
 }
 
-func (k *k) MultimapMultiKeyTable(name string, fieldToIndexBy, id []string, row interface{}) MultimapMkTable {
-	m, ok := toMap(row)
+func (k *k) MultimapMultiKeyTable(tableNamePrefix string, partitionKeyFields, clusteringKeyFields []string, entity interface{}) MultimapMkTable {
+	m, ok := toMap(entity)
 	if !ok {
 		panic("Unrecognized row type")
 	}
 	return &multimapMkT{
-		t: k.NewTable(fmt.Sprintf("%s_multimapMk", name), row, m, Keys{
-			PartitionKeys:     fieldToIndexBy,
-			ClusteringColumns: id,
+		t: k.NewTable(fmt.Sprintf("%s_multimapMk", tableNamePrefix), entity, m, Keys{
+			PartitionKeys:     partitionKeyFields,
+			ClusteringColumns: clusteringKeyFields,
 		}),
-		idField:         id,
-		fieldsToIndexBy: fieldToIndexBy,
+		idField:         clusteringKeyFields,
+		fieldsToIndexBy: partitionKeyFields,
 	}
 }
 
-func (k *k) TimeSeriesTable(name, timeField, idField string, bucketSize time.Duration, row interface{}) TimeSeriesTable {
-	m, ok := toMap(row)
+func (k *k) TimeSeriesTable(tableNamePrefix, timeField, clusteringKeyField string, bucketSize time.Duration, entity interface{}) TimeSeriesTable {
+	m, ok := toMap(entity)
 	if !ok {
 		panic("Unrecognized row type")
 	}
 	m[bucketFieldName] = time.Now()
 	return &timeSeriesT{
-		t: k.NewTable(fmt.Sprintf("%s_timeSeries_%s_%s_%s", name, timeField, idField, bucketSize), row, m, Keys{
+		t: k.NewTable(fmt.Sprintf("%s_timeSeries_%s_%s_%s", tableNamePrefix, timeField, clusteringKeyField, bucketSize), entity, m, Keys{
 			PartitionKeys:     []string{bucketFieldName},
-			ClusteringColumns: []string{timeField, idField},
+			ClusteringColumns: []string{timeField, clusteringKeyField},
 		}),
 		timeField:  timeField,
-		idField:    idField,
+		idField:    clusteringKeyField,
 		bucketSize: bucketSize,
 	}
 }
 
-func (k *k) MultiTimeSeriesTable(name, indexField, timeField, idField string, bucketSize time.Duration, row interface{}) MultiTimeSeriesTable {
-	m, ok := toMap(row)
+func (k *k) MultiTimeSeriesTable(tableNamePrefix, partitionKeyField, timeField, clusteringKeyField string, bucketSize time.Duration, entity interface{}) MultiTimeSeriesTable {
+	m, ok := toMap(entity)
 	if !ok {
 		panic("Unrecognized row type")
 	}
 	m[bucketFieldName] = time.Now()
 	return &multiTimeSeriesT{
-		t: k.NewTable(fmt.Sprintf("%s_multiTimeSeries_%s_%s_%s_%s", name, indexField, timeField, idField, bucketSize.String()), row, m, Keys{
-			PartitionKeys:     []string{indexField, bucketFieldName},
-			ClusteringColumns: []string{timeField, idField},
+		t: k.NewTable(fmt.Sprintf("%s_multiTimeSeries_%s_%s_%s_%s", tableNamePrefix, partitionKeyField, timeField, clusteringKeyField, bucketSize.String()), entity, m, Keys{
+			PartitionKeys:     []string{partitionKeyField, bucketFieldName},
+			ClusteringColumns: []string{timeField, clusteringKeyField},
 		}),
-		indexField: indexField,
+		indexField: partitionKeyField,
 		timeField:  timeField,
-		idField:    idField,
+		idField:    clusteringKeyField,
 		bucketSize: bucketSize,
 	}
 }
 
-func (k *k) MultiKeyTimeSeriesTable(name string, indexFields []string, timeField string, idFields []string, bucketSize time.Duration, row interface{}) MultiKeyTimeSeriesTable {
-	m, ok := toMap(row)
+func (k *k) MultiKeyTimeSeriesTable(tableNamePrefix string, partitionKeyFields []string, timeField string, clusteringKeyFields []string, bucketSize time.Duration, entity interface{}) MultiKeyTimeSeriesTable {
+	m, ok := toMap(entity)
 	if !ok {
 		panic("Unrecognized row type")
 	}
 
-	partitionKeys := indexFields
+	partitionKeys := partitionKeyFields
 	partitionKeys = append(partitionKeys, bucketFieldName)
 	clusteringColumns := []string{timeField}
-	clusteringColumns = append(clusteringColumns, idFields...)
+	clusteringColumns = append(clusteringColumns, clusteringKeyFields...)
 
 	m[bucketFieldName] = time.Now()
 	return &multiKeyTimeSeriesT{
-		t: k.NewTable(fmt.Sprintf("%s_multiKeyTimeSeries_%s_%s", name, timeField, bucketSize.String()), row, m, Keys{
+		t: k.NewTable(fmt.Sprintf("%s_multiKeyTimeSeries_%s_%s", tableNamePrefix, timeField, bucketSize.String()), entity, m, Keys{
 			PartitionKeys:     partitionKeys,
 			ClusteringColumns: clusteringColumns,
 		}),
-		indexFields: indexFields,
+		indexFields: partitionKeyFields,
 		timeField:   timeField,
-		idFields:    idFields,
+		idFields:    clusteringKeyFields,
 		bucketSize:  bucketSize,
 	}
 }
 
-func (k *k) FlakeSeriesTable(name, idField string, bucketSize time.Duration, row interface{}) FlakeSeriesTable {
-	m, ok := toMap(row)
+func (k *k) FlakeSeriesTable(tableNamePrefix, flakeIDField string, bucketSize time.Duration, entity interface{}) FlakeSeriesTable {
+	m, ok := toMap(entity)
 	if !ok {
 		panic("Unrecognized row type")
 	}
 	m[flakeTimestampFieldName] = time.Now()
 	m[bucketFieldName] = time.Now()
 	return &flakeSeriesT{
-		t: k.NewTable(fmt.Sprintf("%s_flakeSeries_%s_%s", name, idField, bucketSize.String()), row, m, Keys{
+		t: k.NewTable(fmt.Sprintf("%s_flakeSeries_%s_%s", tableNamePrefix, flakeIDField, bucketSize.String()), entity, m, Keys{
 			PartitionKeys:     []string{bucketFieldName},
-			ClusteringColumns: []string{flakeTimestampFieldName, idField},
+			ClusteringColumns: []string{flakeTimestampFieldName, flakeIDField},
 		}),
-		idField:    idField,
+		idField:    flakeIDField,
 		bucketSize: bucketSize,
 	}
 }
 
-func (k *k) MultiFlakeSeriesTable(name, indexField, idField string, bucketSize time.Duration, row interface{}) MultiFlakeSeriesTable {
-	m, ok := toMap(row)
+func (k *k) MultiFlakeSeriesTable(tableNamePrefix, partitionKeyField, flakeIDField string, bucketSize time.Duration, entity interface{}) MultiFlakeSeriesTable {
+	m, ok := toMap(entity)
 	if !ok {
 		panic("Unrecognized row type")
 	}
 	m[flakeTimestampFieldName] = time.Now()
 	m[bucketFieldName] = time.Now()
 	return &multiFlakeSeriesT{
-		t: k.NewTable(fmt.Sprintf("%s_multiflakeSeries_%s_%s_%s", name, indexField, idField, bucketSize.String()), row, m, Keys{
-			PartitionKeys:     []string{indexField, bucketFieldName},
-			ClusteringColumns: []string{flakeTimestampFieldName, idField},
+		t: k.NewTable(fmt.Sprintf("%s_multiflakeSeries_%s_%s_%s", tableNamePrefix, partitionKeyField, flakeIDField, bucketSize.String()), entity, m, Keys{
+			PartitionKeys:     []string{partitionKeyField, bucketFieldName},
+			ClusteringColumns: []string{flakeTimestampFieldName, flakeIDField},
 		}),
-		idField:    idField,
+		idField:    flakeIDField,
 		bucketSize: bucketSize,
-		indexField: indexField,
+		indexField: partitionKeyField,
 	}
 }
 
