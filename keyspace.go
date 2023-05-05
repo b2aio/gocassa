@@ -124,10 +124,14 @@ func (k *k) MultiTimeSeriesTable(name, indexField, timeField, idField string, bu
 		panic("Unrecognized row type")
 	}
 	m[bucketFieldName] = time.Now()
+	clusteringColumns := []string{timeField}
+	if idField != timeField {
+		clusteringColumns = append(clusteringColumns, idField)
+	}
 	return &multiTimeSeriesT{
 		t: k.NewTable(fmt.Sprintf("%s_multiTimeSeries_%s_%s_%s_%s", name, indexField, timeField, idField, bucketSize.String()), row, m, Keys{
 			PartitionKeys:     []string{indexField, bucketFieldName},
-			ClusteringColumns: []string{timeField, idField},
+			ClusteringColumns: clusteringColumns,
 		}),
 		indexField: indexField,
 		timeField:  timeField,
