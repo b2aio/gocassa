@@ -625,6 +625,13 @@ func (q *MockFilter) Read(out interface{}) Op {
 			return err
 		}
 
+		// If a query-level clustering order has been provided, and the first one is descending, reverse the list
+		if len(m.options.ClusteringOrder) > 0 && m.options.ClusteringOrder[0].Direction == DESC {
+			for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
+				result[i], result[j] = result[j], result[i]
+			}
+		}
+
 		opt := q.table.options.Merge(m.options)
 		if opt.Limit > 0 && opt.Limit < len(result) {
 			result = result[:opt.Limit]

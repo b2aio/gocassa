@@ -347,6 +347,14 @@ func (s *MockSuite) TestMultiMapTableList() {
 	s.NoError(s.mmapTbl.List(1, 2, 1, &users).Run())
 	s.Len(users, 1)
 	s.Equal("Joe", users[0].Name)
+
+	// Order DESC
+	s.NoError(s.mmapTbl.List(1, 0, 10, &users).WithOptions(Options{
+		ClusteringOrder: []ClusteringOrderColumn{{Column: "Name", Direction: DESC}},
+	}).Run())
+	s.Len(users, 2)
+	s.Equal("Joe", users[0].Name)
+	s.Equal("Jane", users[1].Name)
 }
 
 func (s *MockSuite) TestMultiMapTableUpdate() {
