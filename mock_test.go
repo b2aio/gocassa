@@ -122,6 +122,25 @@ func (s *MockSuite) TestEmptyPrimaryKey() {
 	s.NoError(s.embMapTbl.Set(add).Run())
 	s.NoError(s.addressByCountyMmTbl.Set(add).Run())
 
+	// SELECTs
+	selectAdd := &address{}
+	s.Error(s.embMapTbl.Read("", selectAdd).Run())
+	s.Error(s.addressByCountyMmTbl.Read("", add.Id, selectAdd).Run())
+	// empty clustering columns are ok though
+	s.NoError(s.addressByCountyMmTbl.Read(add.County, "", selectAdd).Run())
+
+	// UPDATEs
+	s.Error(s.embMapTbl.Update("", map[string]interface{}{}).Run())
+	s.Error(s.addressByCountyMmTbl.Update("", add.Id, map[string]interface{}{}).Run())
+	// empty clustering columns are ok though
+	s.NoError(s.addressByCountyMmTbl.Update(add.County, "", map[string]interface{}{}).Run())
+
+	// DELETEs
+	s.Error(s.embMapTbl.Delete("").Run())
+	s.Error(s.addressByCountyMmTbl.Delete("", add.Id).Run())
+	// empty clustering columns are ok though
+	s.NoError(s.addressByCountyMmTbl.Delete(add.County, "").Run())
+
 	add = address{
 		Id:              "",
 		TownID:          "",
@@ -134,6 +153,19 @@ func (s *MockSuite) TestEmptyPrimaryKey() {
 	// no error in writing all empty values to a table with a composite
 	// primary key
 	s.NoError(s.mmMkTable.Set(add).Run())
+
+	// can't test SELECT/UPDATE/DELETEs for mmMkTable because it doesn't support
+	// empty composite partition keys or clustering columns, even though C*
+	// does, see
+	// https://github.com/monzo/gocassa/blob/ac4547a19b85b0fefbc2e004288dc6f4cbe46aaa/multimap_multikey_table.go#L84
+	//
+	// TODO: uncomment the following lines if support for empty composite keys
+	// is added
+	// partitionKeys := map[string]interface{}{"Id": "", "TownID": ""}
+	// clusteringColumns := map[string]interface{}{"County": ""}
+	// s.NoError(s.mmMkTable.Read(partitionKeys, clusteringColumns, selectAdd).Run())
+	// s.NoError(s.mmMkTable.Update(partitionKeys, clusteringColumns, map[string]interface{}{"PostCode": "DEF"}).Run())
+	// s.NoError(s.mmMkTable.Delete(partitionKeys, clusteringColumns).Run())
 }
 
 func (s *MockSuite) TestTableRead() {
@@ -238,6 +270,10 @@ func (s *MockSuite) TestMapTableMultiRead() {
 	s.Len(users, 2)
 	s.Equal("Jane", users[0].Name)
 	s.Equal("Jill", users[1].Name)
+
+	var users2 []user
+	s.NoError(s.mapTbl.MultiRead([]interface{}{}, &users2).Run())
+	s.Len(users2, 0)
 }
 
 func (s *MockSuite) TestMapTableUpdate() {
